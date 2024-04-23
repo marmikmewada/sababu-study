@@ -1,0 +1,123 @@
+{
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john.doe@example.com",
+    "password": "password123",
+    "phone": "1234567890",
+    "gender": "Male",
+    "dob": "1990-01-01",
+    "address": {
+      "street": "123 Main St",
+      "city": "Anytown",
+      "state": "NY",
+      "zip": "12345"
+    },
+    "maritalStatus": "Married",
+    "hometown": "Smalltown",
+    "nationality": "American",
+    "employment": {
+      "company": "ABC Corp",
+      "jobTitle": "Software Engineer"
+    },
+    "documents": {
+      "passport": {
+        "number": "123456789",
+        "expirationDate": "2025-12-31"
+      }
+    },
+    "emergencyContact": [
+      {
+        "relation": "Spouse",
+        "name": "Jane Doe",
+        "phone": "9876543210",
+        "email": "jane.doe@example.com",
+        "address": {
+          "apt": "Apt 101",
+          "street": "456 Oak St",
+          "city": "Smalltown",
+          "state": "NY",
+          "country": "USA",
+          "zip": "12345"
+        }
+      },
+      {
+        "relation": "Parent",
+        "name": "John Doe Sr.",
+        "phone": "8765432109",
+        "email": "john.doe.sr@example.com",
+        "address": {
+          "apt": "Apt 102",
+          "street": "456 Oak St",
+          "city": "Smalltown",
+          "state": "NY",
+          "country": "USA",
+          "zip": "12345"
+        }
+      }
+    ],
+    "spouse": {
+      "firstName": "Jane",
+      "lastName": "Doe",
+      "email": "jane.doe@example.com",
+      "birthdate": "1992-05-15",
+      "sex": "Female",
+      "nationality": "American",
+      "address": {
+        "street": "456 Oak St",
+        "apt": "Apt 101",
+        "city": "Smalltown",
+        "state": "NY",
+        "zip": "12345"
+      }
+    },
+    "children": [
+      {
+        "firstName": "Alice",
+        "lastName": "Doe",
+        "email": "alice.doe@example.com",
+        "birthdate": "2015-08-20",
+        "sex": "Female",
+        "nationality": "American",
+        "address": {
+          "street": "456 Oak St",
+          "apt": null,
+          "city": "Smalltown",
+          "state": "NY",
+          "zip": "12345"
+        }
+      },
+      {
+        "firstName": "Bob",
+        "lastName": "Doe",
+        "email": "bob.doe@example.com",
+        "birthdate": "2017-11-10",
+        "sex": "Male",
+        "nationality": "American",
+        "address": {
+          "street": "456 Oak St",
+          "apt": null,
+          "city": "Smalltown",
+          "state": "NY",
+          "zip": "12345"
+        }
+      }
+    ],
+    "adultDependents": [
+      {
+        "firstName": "Eve",
+        "lastName": "Doe",
+        "email": "eve.doe@example.com",
+        "birthdate": "1990-03-25",
+        "sex": "Female",
+        "nationality": "American",
+        "address": {
+          "street": "456 Oak St",
+          "apt": null,
+          "city": "Smalltown",
+          "state": "NY",
+          "zip": "12345"
+        }
+      }
+    ]
+  }
+  

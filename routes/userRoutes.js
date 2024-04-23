@@ -1,0 +1,45 @@
+// userRoutes.js
+const express = require('express');
+const router = express.Router();
+const userController = require('../controllers/userController');
+const multer = require('multer');
+
+// Set up multer storage engine
+const storageEngine = multer.memoryStorage(); // Store file in memory
+const multerUpload = multer({ storage: storageEngine }).single('image');
+
+// User signup route
+router.post('/signup', userController.signup);
+
+// User signin route
+router.post('/signin', userController.signin);
+
+// Update user profile route
+router.put('/profile', userController.updateUserProfile);
+
+// Delete user account route
+router.delete('/profile', userController.deleteAccount);
+
+// Upload profile image route
+router.post('/profile/image',multerUpload, userController.uploadProfileImage);
+
+// Get user profile route
+router.get('/profile', userController.getUserProfile);
+
+// Admin routes
+// Get all users route for admin
+router.get('/admin/users', userController.getAllUserForAdmin);
+
+// Get user by ID route for admin
+router.get('/admin/users/:userId', userController.getUserByIdForAdmin);
+
+// Create user route for admin
+router.post('/admin/users', userController.createUserForAdmin);
+
+// Update user profile route for admin
+router.put('/admin/users/:userId', userController.updateUserProfileForAdmin);
+
+// Delete user route for admin
+router.delete('/admin/users/:userId', userController.deleteUserForAdmin);
+
+module.exports = router; // Ensure router object is exported
