@@ -14,6 +14,13 @@ const signupForEvent = async (req, res) => {
       return res.status(404).json({ error: 'Event not found' });
     }
 
+    // Check if event status is 'full' or 'finished'
+    if (event.eventStatus === 'full') {
+      return res.status(400).json({ error: 'Event is already full, cannot sign up' });
+    } else if (event.eventStatus === 'finished') {
+      return res.status(400).json({ error: 'Event is already finished, cannot sign up' });
+    }
+
     // Check if event is full
     if (event.capacity && event.capacity < numberOfVisitors) {
       return res.status(400).json({ error: 'Event capacity reached, cannot sign up' });
@@ -21,7 +28,8 @@ const signupForEvent = async (req, res) => {
 
     // Check if the total number of visitors for the event exceeds capacity
     if (event.visitors && event.visitors + numberOfVisitors > event.capacity) {
-      return res.status(400).json({ error: 'Event capacity reached, cannot sign up' });
+      const spotsLeft = event.capacity - event.visitors;
+      return res.status(400).json({ error: `Only ${spotsLeft} spots left, cannot sign up with ${numberOfVisitors} visitors` });
     }
 
     // Create a new event signup

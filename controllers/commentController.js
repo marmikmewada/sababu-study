@@ -92,10 +92,54 @@ const getAllCommentsByPostId = async (req, res) => {
     }
   };
 
+
+  // functions for admin
+
+  // Controller to get all comments (accessible only to admin)
+const getAllComments = async (req, res) => {
+  try {
+    // Check if the requester is an admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'You are not authorized to access this resource' });
+    }
+
+    // Retrieve all comments from the database
+    const comments = await Comment.find();
+
+    res.status(200).json({ comments });
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Controller to delete multiple comments (accessible only to admin)
+const deleteMultipleComments = async (req, res) => {
+  try {
+    // Check if the requester is an admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'You are not authorized to access this resource' });
+    }
+
+    const commentIds = req.body.commentIds;
+
+    // Delete multiple comments by their IDs
+    const deletedComments = await Comment.deleteMany({ _id: { $in: commentIds } });
+
+    res.status(200).json({ message: 'Comments deleted successfully', deletedComments });
+  } catch (error) {
+    console.error('Error deleting comments:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 // Export the controllers
 module.exports = {
   createComment,
   editComment,
   deleteComment,
-  getAllCommentsByPostId
+  getAllCommentsByPostId,
+  //for admin
+  getAllComments,
+  deleteMultipleComments
 };

@@ -27,6 +27,7 @@ const applyForMembership = async (req, res) => {
 };
 
 // Controller to update member status
+// Controller to update member status
 const updateMemberStatus = async (req, res) => {
   try {
     // Check if the requester is an admin
@@ -35,21 +36,31 @@ const updateMemberStatus = async (req, res) => {
     }
 
     // Extract data from request body
-    const { userId, newStatus } = req.body;
+    const { userStatusUpdates } = req.body;
 
-    // Find the membership by user ID
-    const membership = await Membership.findOne({ user: userId });
-
-    // Check if membership exists
-    if (!membership) {
-      return res.status(404).json({ error: 'Membership not found' });
+    // Validate request body
+    if (!Array.isArray(userStatusUpdates) || userStatusUpdates.length === 0) {
+      return res.status(400).json({ error: 'Invalid request body' });
     }
 
-    // Update the membership status
-    membership.status = newStatus;
+    // Iterate over each user status update object in the array
+    for (const update of userStatusUpdates) {
+      const { userId, newStatus } = update;
 
-    // Save the updated membership to the database
-    await membership.save();
+      // Find the membership by user ID
+      const membership = await Membership.findOne({ user: userId });
+
+      // Check if membership exists
+      if (!membership) {
+        return res.status(404).json({ error: `Membership not found for user ID: ${userId}` });
+      }
+
+      // Update the membership status
+      membership.status = newStatus;
+
+      // Save the updated membership to the database
+      await membership.save();
+    }
 
     res.status(200).json({ message: 'Membership status updated successfully' });
   } catch (error) {
@@ -57,6 +68,7 @@ const updateMemberStatus = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
 
 
 module.exports = {

@@ -80,5 +80,4 @@ EventSchema.path('images').validate(function(value) {
   return value.length <= 2;
 }, 'Only two images are allowed per event');
 
-// Create and export the Event model
 module.exports = mongoose.model('Event', EventSchema);

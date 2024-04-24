@@ -65,8 +65,27 @@ const updateDonationStatus = async (req, res) => {
   }
 };
 
+// Controller to get all donations
+const getAllDonations = async (req, res) => {
+  try {
+    // Check if the requester is an admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'You are not authorized to access this resource' });
+    }
+
+    // Retrieve all donations from the database
+    const donations = await Donation.find().populate('donor'); // Populate the donor field
+
+    res.status(200).json({ donations });
+  } catch (error) {
+    console.error('Error fetching donations:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 
 module.exports = {
   donate,
-  updateDonationStatus
+  updateDonationStatus,
+  getAllDonations
 };
