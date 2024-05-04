@@ -12,11 +12,13 @@ const membershipSchema = new Schema({
   status: {
     type: String,
     enum: ['applied', 'about to expire', 'active','denied', 'expired'],
+    // about to expire on dec 31st
+    // expired on jan 31st
     default: 'applied'
   },
   membershipType: {
     type: String,
-    enum: ['single', 'single family', 'family', 'senior citizen'],
+    enum: ['single', 'singlefamily', 'family', 'seniorcitizen'],
     required: true
   },
   membershipID: {

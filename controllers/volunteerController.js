@@ -96,9 +96,27 @@ const getVolunteerById = async (req, res) => {
   }
 };
 
+// Controller to get all pending volunteers
+const getPendingVolunteers = async (req, res) => {
+  try {
+    // Check if the requester is an admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'You are not authorized to view pending volunteers' });
+    }
+
+    const pendingVolunteers = await Volunteer.find({ volunteerStatus: 'pending' });
+    res.status(200).json({ pendingVolunteers });
+  } catch (error) {
+    console.error('Error getting pending volunteers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   becomeVolunteer,
   updateVolunteerStatus,
   getAllVolunteers,
-  getVolunteerById
+  getVolunteerById,
+  getPendingVolunteers // Add this controller
 };
+

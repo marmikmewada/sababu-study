@@ -296,6 +296,31 @@ const eventDeleteForAdmin = async (req, res) => {
 
 
 
+// delete muiltple events for admin 
+// Controller to delete multiple events for admin
+const deleteMultipleEventsForAdmin = async (req, res) => {
+  try {
+    // Check if the user is an admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
+    const eventIds = req.body.eventIds;
+
+    // Delete the events by IDs
+    const deletedEvents = await Event.deleteMany({ _id: { $in: eventIds } });
+
+    if (!deletedEvents) {
+      return res.status(404).json({ error: 'Events not found' });
+    }
+
+    res.status(200).json({ message: 'Events deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting events:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 
 
 
@@ -309,5 +334,6 @@ module.exports = {
   getAllEvents,
   getEventById,
   eventApproveForAdmin,
-  eventDeleteForAdmin
+  eventDeleteForAdmin,
+  deleteMultipleEventsForAdmin
 };

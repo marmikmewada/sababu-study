@@ -1,37 +1,19 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/database'); // Import the connectDB function
 const userRoutes = require("./routes/userRoutes"); // Correct path to userRoutes.js
-const volunteerRoutes = require("./routes/volunteerRoutes")
-const membershipRoutes = require("./routes/membershipRoutes")
-const memberRoutes = require("./routes/memberRoutes")
-const likeRoutes = require("./routes/likeRoutes")
-const eventSignupsRoutes = require("./routes/eventSignupsRoutes")
-const eventRoutes = require("./routes/eventRoutes")
-const donationRoutes = require("./routes/donationRoutes")
-const commentRoutes = require("./routes/commentRoutes")
-const blogRoutes = require("./routes/blogRoutes")
 const Event = require("./models/Event"); // Import the Event model
 const cron = require('node-cron');
 const moment = require('moment-timezone');
+
 const app = express();
-const port = process.env.PORT;
+const port = 3000;
 
 // Set up CORS middleware
 app.use(express.json()); // Parse JSON bodies
 app.use(cors());
 
-app.use('/users', userRoutes);
-app.use('/Volunteer', volunteerRoutes);
-app.use('/membership', membershipRoutes);
-app.use('/member', memberRoutes);
-app.use('/like', likeRoutes);
-app.use('/eventsignup', eventSignupsRoutes);
-app.use('/event', eventRoutes);
-app.use('/donation', donationRoutes);
-app.use('/comment', commentRoutes);
-app.use('/blog', blogRoutes);
+app.use('/users', userRoutes); // Mount user routes under /api/users
 
 // Define the updateEventStatus function...
 // (Your existing updateEventStatus function here)

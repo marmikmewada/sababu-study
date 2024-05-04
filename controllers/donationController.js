@@ -1,5 +1,5 @@
 const Donor = require('../models/Donor');
-const Donation = require('../models/Donation');
+const Donation = require('../models/Donations');
 const { validationResult } = require('express-validator');
 
 // Controller to donate
@@ -84,8 +84,39 @@ const getAllDonations = async (req, res) => {
 };
 
 
+// Controller to toggle donation status
+const toggleDonationStatus = async (req, res) => {
+  try {
+    // Check if the user is an admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'You are not authorized to toggle donation status' });
+    }
+
+    const donationId = req.params.donationId;
+
+    // Find the donation by ID
+    const donation = await Donation.findById(donationId);
+
+    if (!donation) {
+      return res.status(404).json({ error: 'Donation not found' });
+    }
+
+    // Toggle donation status
+    donation.donationStatus = donation.donationStatus === 'pending' ? 'donated' : 'pending';
+    await donation.save();
+
+    res.status(200).json({ message: 'Donation status toggled successfully', donation });
+  } catch (error) {
+    console.error('Error toggling donation status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
 module.exports = {
   donate,
   updateDonationStatus,
-  getAllDonations
+  getAllDonations,
+  toggleDonationStatus
 };

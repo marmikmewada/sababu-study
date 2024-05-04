@@ -1,4 +1,4 @@
-const BlogPost = require('../models/BlogPost');
+const BlogPost = require('../models/BlogPosts');
 const multer = require('multer');
 const storage = require('../config/firebase');
 
@@ -153,12 +153,68 @@ const deleteBlogPost = async (req, res) => {
     }
   };
   
-  
+  // admin can get all blogs no matter which user, all blogs
+  // admin can get a single blog
+  // admin can update a single blog
+  // admin can delete multiple blogs
+  // admin can Toggle approve status of multiple blogs - we dont have toggle for blog for admin. 
 
-module.exports = {
-  createBlogPost,
-  updateBlogPost,
-  deleteBlogPost,
-  getAllBlogPosts,
-  getBlogPostById
-};
+  const toggleBlogPostApproval = async (req, res) => {
+    try {
+      // Check if user is an admin
+      if (!req.user || !req.user.isAdmin) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+  
+      const blogPostId = req.params.blogPostId;
+      const blogPost = await BlogPost.findById(blogPostId);
+  
+      if (!blogPost) {
+        return res.status(404).json({ error: 'Blog post not found' });
+      }
+  
+      // Toggle the isApproved field
+      blogPost.isApproved = !blogPost.isApproved;
+      await blogPost.save();
+  
+      res.status(200).json({ message: 'Blog post approval status toggled successfully', blogPost });
+    } catch (error) {
+      console.error('Error toggling blog post approval status:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+  
+  const deleteMultipleBlogPosts = async (req, res) => {
+    try {
+      // Check if user is an admin
+      if (!req.user || !req.user.isAdmin) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+  
+      const { blogPostIds } = req.body;
+  
+      // Validate if blogPostIds is an array
+      if (!Array.isArray(blogPostIds)) {
+        return res.status(400).json({ error: 'Invalid data format' });
+      }
+  
+      // Delete the blog posts
+      await BlogPost.deleteMany({ _id: { $in: blogPostIds } });
+  
+      res.status(200).json({ message: 'Blog posts deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting blog posts:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+  
+  module.exports = {
+    createBlogPost,
+    updateBlogPost,
+    deleteBlogPost,
+    getAllBlogPosts,
+    getBlogPostById,
+    toggleBlogPostApproval,
+    deleteMultipleBlogPosts
+  };
+  

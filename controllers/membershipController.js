@@ -4,15 +4,16 @@
 
 const Membership = require('../models/Membership');
 
-// Controller to apply for membership
 const applyForMembership = async (req, res) => {
   try {
-    // Extract data from request body
-    const { user, membershipType } = req.body;
+    // Extract user ID from the request object
+    const userId = req.user._id;
+    // Extract membershipType from request body
+    const { membershipType } = req.body;
 
     // Create a new membership instance
     const newMembership = new Membership({
-      user,
+      user: userId, // Use the extracted user ID
       membershipType
     });
 
