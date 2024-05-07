@@ -1,0 +1,76 @@
+{
+    "user": {
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "password": "newpassword123",
+      "phone": "555-123-4567",
+      "address": {
+        "street": "789 Maple St",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10001"
+      }
+    },
+    "maritalStatus": "Married",
+    "hometown": "New York",
+    "nationality": "American",
+    "origin": "Irish",
+    "employment": {
+      "company": "ABC Corporation",
+      "jobTitle": "Software Engineer",
+      "workAddress": "123 Main St",
+      "workPhone": "555-123-4567",
+      "workEmail": "john.doe@abc.com",
+      "employmentStatus": "Full-time"
+    },
+    "documents": {
+      "passport": {
+        "number": "P123456",
+        "expirationDate": "2025-10-15"
+      },
+      "driverLicense": {
+        "number": "DL123456",
+        "expirationDate": "2024-12-31",
+        "state": "NY"
+      }
+    },
+    "emergencyContact": [
+      {
+        "relation": "Spouse",
+        "name": "Jane Doe",
+        "phone": "555-789-1234",
+        "email": "jane.doe@example.com",
+        "address": {
+          "apt": "Apt 101",
+          "street": "456 Elm St",
+          "city": "New York",
+          "state": "NY",
+          "country": "USA",
+          "zip": "10002"
+        }
+      },
+      {
+        "relation": "Parent",
+        "name": "John Doe Sr.",
+        "phone": "555-987-6543",
+        "email": "john.doe.sr@example.com",
+        "address": {
+          "apt": "",
+          "street": "789 Oak St",
+          "city": "New York",
+          "state": "NY",
+          "country": "USA",
+          "zip": "10003"
+        }
+      }
+    ],
+    "address": {
+      "apt": "Apt 202",
+      "street": "789 Maple St",
+      "city": "New York",
+      "state": "NY",
+      "country": "USA",
+      "zip": "10001"
+    }
+  }
+  

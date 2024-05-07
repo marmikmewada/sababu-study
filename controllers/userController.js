@@ -5,7 +5,7 @@ const storage = require("../config/firebase");
 const jwt = require("jsonwebtoken");
 // const User = require('../models/User');
 const Member = require("../models/Member");
-const { ObjectId } = require('mongoose').Types;
+const { ObjectId } = require("mongoose").Types;
 const Household = require("../models/Household");
 const Membership = require("../models/Membership");
 const xss = require("xss");
@@ -515,12 +515,10 @@ const updateUserProfile = async (req, res) => {
         { $set: updateUserFields },
         { new: true }
       );
-      return res
-        .status(200)
-        .json({
-          message: "User profile updated successfully",
-          user: updatedUserProfile,
-        });
+      return res.status(200).json({
+        message: "User profile updated successfully",
+        user: updatedUserProfile,
+      });
     }
 
     // If Membership model is available, check membership status
@@ -544,12 +542,10 @@ const updateUserProfile = async (req, res) => {
         { $set: updateUserFields },
         { new: true }
       );
-      return res
-        .status(200)
-        .json({
-          message: "User profile updated successfully",
-          user: updatedUserProfile,
-        });
+      return res.status(200).json({
+        message: "User profile updated successfully",
+        user: updatedUserProfile,
+      });
     }
 
     // Determine the behavior based on the membership status
@@ -564,7 +560,7 @@ const updateUserProfile = async (req, res) => {
         const updateMemberFields = {};
         for (const field in updateFields) {
           if (validMemberFields.includes(field)) {
-            if (field === 'user' && updateFields.user) {
+            if (field === "user" && updateFields.user && updateFields.user._id) {
               // Extract the _id from the User object and pass it as a string or ObjectId
               updateMemberFields.user = new ObjectId(updateFields.user._id);
             } else {
@@ -581,49 +577,43 @@ const updateUserProfile = async (req, res) => {
           console.log("User ID before update:", userId);
           // Ensure the correct user ID is set in the updateMemberFields
           updateMemberFields.user = userId;
-          // Update member profile
-          const updatedMember = await Member.findOneAndUpdate(
+
+          // Find the existing member profile or create a new one if it doesn't exist
+          let updatedMember = await Member.findOneAndUpdate(
             { user: userId },
             { $set: updateMemberFields },
             { new: true }
-          )
-            .populate("user", "_id name email")
-            .exec(); // Populate only necessary fields of the user document
+          );
 
-          console.log("User ID after update:", userId);
-          console.log("User in Updated Member:", updatedMember.user);
-
-          // Update household profile if applicable
-          if (Object.keys(updateFields.household || {}).length > 0) {
-            const validHouseholdFields = Object.keys(Household.schema.paths);
-            console.log("Valid Household Fields:", validHouseholdFields);
-
-            const updateHouseholdFields = {};
-            for (const field in updateFields.household) {
-              if (validHouseholdFields.includes(field)) {
-                updateHouseholdFields[field] = updateFields.household[field];
-              }
-            }
-
-            const updatedHousehold = await Household.findOneAndUpdate(
-              { member: updatedMember._id },
-              { $set: updateHouseholdFields },
-              { new: true }
-            );
-
-            return res.status(200).json({
-              message: "Member and household profiles updated successfully",
-              member: updatedMember,
-              household: updatedHousehold,
-            });
+          // If member profile doesn't exist, create a new one
+          if (!updatedMember) {
+            updatedMember = new Member(updateMemberFields);
+            updatedMember.user = userId;
+            await updatedMember.save();
           }
 
-          return res
-            .status(200)
-            .json({
-              message: "Member profile updated successfully",
-              member: updatedMember,
-            });
+          // Update household profile if applicable
+          const validHouseholdFields = Object.keys(Household.schema.paths);
+          console.log("Valid Household Fields:", validHouseholdFields);
+
+          const updateHouseholdFields = {};
+          for (const field in updateFields.household) {
+            if (validHouseholdFields.includes(field)) {
+              updateHouseholdFields[field] = updateFields.household[field];
+            }
+          }
+
+          const updatedHousehold = await Household.findOneAndUpdate(
+            { member: updatedMember._id },
+            { $set: updateHouseholdFields },
+            { new: true }
+          );
+
+          return res.status(200).json({
+            message: "Member and household profiles updated successfully",
+            member: updatedMember,
+            household: updatedHousehold,
+          });
         } else {
           console.log("No valid fields for updating member profile");
           return res.status(200).json({
@@ -650,21 +640,16 @@ const updateUserProfile = async (req, res) => {
           { $set: updateUserFieldsApplied },
           { new: true }
         );
-        return res
-          .status(200)
-          .json({
-            message: "User profile updated successfully",
-            user: updatedUserProfileApplied,
-          });
+        return res.status(200).json({
+          message: "User profile updated successfully",
+          user: updatedUserProfileApplied,
+        });
 
       case "denied":
       case "expired":
         // Update only the user profile
         const validUserFieldsDenied = Object.keys(User.schema.paths);
-        console.log(
-          "Valid User Fields (Denied/Expired):",
-          validUserFieldsDenied
-        );
+        console.log("Valid User Fields (Denied/Expired):", validUserFieldsDenied);
 
         // Flatten the updateFields object for user to include only top-level fields valid for update
         const updateUserFieldsDenied = {};
@@ -680,12 +665,10 @@ const updateUserProfile = async (req, res) => {
           { $set: updateUserFieldsDenied },
           { new: true }
         );
-        return res
-          .status(200)
-          .json({
-            message: "User profile updated successfully",
-            user: updatedUserProfileDenied,
-          });
+        return res.status(200).json({
+          message: "User profile updated successfully",
+          user: updatedUserProfileDenied,
+        });
 
       default:
         return res.status(500).json({ error: "Internal server error" });
@@ -695,8 +678,6 @@ const updateUserProfile = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-
-
 
 
 const deleteAccount = async (req, res) => {
@@ -908,12 +889,10 @@ const updateUserProfileForAdmin = async (req, res) => {
         { new: true }
       );
 
-      return res
-        .status(200)
-        .json({
-          message: "User profile updated successfully",
-          user: updatedUser,
-        });
+      return res.status(200).json({
+        message: "User profile updated successfully",
+        user: updatedUser,
+      });
     }
 
     // Declare updatedUser and updatedMember variables outside the switch statement
@@ -938,12 +917,10 @@ const updateUserProfileForAdmin = async (req, res) => {
           { new: true }
         );
 
-        return res
-          .status(200)
-          .json({
-            message: "User profile updated successfully",
-            user: updatedUser,
-          });
+        return res.status(200).json({
+          message: "User profile updated successfully",
+          user: updatedUser,
+        });
 
       case "active":
       case "about to expire":
@@ -971,13 +948,11 @@ const updateUserProfileForAdmin = async (req, res) => {
           { new: true }
         );
 
-        return res
-          .status(200)
-          .json({
-            message: "User and member profiles updated successfully",
-            user: updatedUser,
-            member: updatedMember,
-          });
+        return res.status(200).json({
+          message: "User and member profiles updated successfully",
+          user: updatedUser,
+          member: updatedMember,
+        });
 
       case "denied":
       case "expired":
@@ -996,12 +971,10 @@ const updateUserProfileForAdmin = async (req, res) => {
           { new: true }
         );
 
-        return res
-          .status(200)
-          .json({
-            message: "User profile updated successfully",
-            user: updatedUser,
-          });
+        return res.status(200).json({
+          message: "User profile updated successfully",
+          user: updatedUser,
+        });
 
       default:
         return res.status(500).json({ error: "Internal server error" });
