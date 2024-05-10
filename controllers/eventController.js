@@ -4,152 +4,159 @@
 const Event = require('../models/Event');
 const multer = require('multer');
 const storage = require('../config/firebase');
+// const { getSignedUrl } = require('firebase-admin/storage');
 
 const multerStorage = multer.memoryStorage();
 const multerUpload = multer({ storage: multerStorage }).array('images', 2); // Limiting to 2 images
 
 // Controller to create an event
 // Controller to create an event
-const createEvent = async (req, res, next) => {
+
+const createEvent = async (req, res) => {
   try {
-    // Upload images to Firebase Storage if provided
-    multerUpload(req, res, async (err) => {
-      if (err instanceof multer.MulterError) {
-        console.error('Multer error:', err);
-        return res.status(500).json({ error: 'Internal server error' });
-      } else if (err) {
-        console.error('Error uploading images:', err);
-        return res.status(500).json({ error: 'Internal server error' });
-      }
+    console.log(req.body); // Initial log to inspect the raw body
 
-      try {
-        // Extract uploaded image URLs
-        const images = req.files ? req.files.map(file => file.location) : [];
-
-        // Extract data from request body
-        const { name, type, description, venue, capacity, cost, startTime, endTime, startDate, endDate, organiser, organization } = req.body;
-        
-        // Extract address data
-        const { street, unit, city, state, zip } = req.body.address;
-
-        // Create a new event instance
-        const newEvent = new Event({
-          name,
-          type,
-          description,
-          venue,
-          capacity,
-          address: {
-            street,
-            unit,
-            city,
-            state,
-            zip
-          },
-          images,
-          cost,
-          startTime,
-          endTime,
-          startDate,
-          endDate,
-          organiser,
-          organization,
-          postedBy: req.user._id // Assuming req.user contains the authenticated user's data
-        });
-
-        // Save the event to the database
-        await newEvent.save();
-
-        res.status(201).json({ message: 'Event created successfully', event: newEvent });
-      } catch (error) {
-        console.error('Error creating event:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    // Parse address fields from form data into a structured object
+    const parsedAddress = {};
+    Object.keys(req.body).forEach(key => {
+      if (key.startsWith('address.')) {
+        const subKey = key.split('.')[1];
+        parsedAddress[subKey] = req.body[key];
       }
     });
+
+    // Replace flat address fields with the structured object
+    req.body.address = parsedAddress;
+
+    const { name, type, description, venue, capacity, cost, startTime, endTime, startDate, endDate, organiser, organization, address } = req.body;
+
+    if (!address || Object.keys(address).length === 0) {
+      return res.status(400).json({ error: "Address field is missing or incomplete" });
+    }
+
+    const images = [];
+    if (req.files && req.files.length > 0) {
+      const bucket = storage.bucket(); // Use the Firebase storage bucket
+
+      const uploadPromises = req.files.map(file => {
+        const blob = bucket.file(`events/${Date.now()}_${file.originalname}`);
+        const blobStream = blob.createWriteStream({
+          metadata: {
+            contentType: file.mimetype,
+          },
+        });
+
+        return new Promise((resolve, reject) => {
+          blobStream.on('error', error => reject(error));
+          blobStream.on('finish', () => {
+            blob.makePublic().then(() => {
+              const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+              images.push(publicUrl);
+              resolve(publicUrl);
+            }).catch(error => reject(error));
+          });
+          blobStream.end(file.buffer);
+        });
+      });
+
+      // Wait for all uploads to complete
+      await Promise.all(uploadPromises);
+    }
+
+    // Create a new event instance with the processed data
+    const newEvent = new Event({
+      name,
+      type,
+      description,
+      venue,
+      capacity,
+      address,
+      images,
+      cost,
+      startTime,
+      endTime,
+      startDate,
+      endDate,
+      organiser,
+      organization,
+      postedBy: req.user._id
+    });
+
+    await newEvent.save();
+    res.status(201).json({ message: 'Event created successfully', event: newEvent });
   } catch (error) {
     console.error('Error creating event:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 };
 
-
-
-
-// Controller to update an event
 const updateEvent = async (req, res) => {
   try {
     const eventId = req.params.eventId;
-    const updateFields = req.body;
-
-    // Reset isApproved status to false on update
-    updateFields.isApproved = false;
-
-    // Check if the user making the request is the same as the one who posted the event
-    const event = await Event.findById(eventId);
-    if (!event) {
+    const existingEvent = await Event.findById(eventId);
+    if (!existingEvent) {
       return res.status(404).json({ error: 'Event not found' });
     }
-    if (String(event.postedBy) !== String(req.user._id)) {
-      return res.status(403).json({ error: 'Unauthorized access' });
+
+    // Automatically reset isApproved to false on every update
+    const updateFields = req.body;
+    updateFields.isApproved = false;
+
+    // Parse and update address fields
+    const parsedAddress = {};
+    if (req.body.address) {
+      Object.keys(req.body.address).forEach(key => {
+        parsedAddress[key] = req.body.address[key];
+      });
+      updateFields.address = parsedAddress;
     }
 
-    // Extract address data
-    const { street, unit, city, state, zip } = req.body.address;
+    // Clear existing image URLs from the document if new images are uploaded
+    if (req.files && req.files.length > 0) {
+      existingEvent.images = []; // Clear out old images from the document
 
-    // Update the address fields in updateFields
-    updateFields.address = {
-      street,
-      unit,
-      city,
-      state,
-      zip
-    };
+      const bucket = storage.bucket(); // Use the Firebase storage bucket
+      const uploadPromises = req.files.map(file => {
+        const blob = bucket.file(`events/${Date.now()}_${file.originalname}`);
+        const blobStream = blob.createWriteStream({
+          metadata: {
+            contentType: file.mimetype,
+          },
+        });
 
-    // Upload images to Firebase Storage if provided
-    multerUpload(req, res, async (err) => {
-      if (err instanceof multer.MulterError) {
-        console.error('Multer error:', err);
-        return res.status(500).json({ error: 'Internal server error' });
-      } else if (err) {
-        console.error('Error uploading images:', err);
-        return res.status(500).json({ error: 'Internal server error' });
-      }
+        return new Promise((resolve, reject) => {
+          blobStream.on('error', error => reject(error));
+          blobStream.on('finish', () => {
+            blob.makePublic().then(() => {
+              const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+              existingEvent.images.push(publicUrl);
+              resolve();
+            }).catch(error => reject(error));
+          });
+          blobStream.end(file.buffer);
+        });
+      });
 
-      try {
-        // Extract uploaded image URLs
-        const images = req.files ? req.files.map(file => file.location) : [];
+      // Wait for all new images to be uploaded
+      await Promise.all(uploadPromises);
+      updateFields.images = existingEvent.images; // Update image array with new URLs
+    }
 
-        // If new images are uploaded, delete previously stored image URLs
-        if (images.length > 0) {
-          // Delete previous images from Firebase Storage
-          for (const imageUrl of event.images) {
-            // Your code to delete images from Firebase Storage goes here
-          }
-          // Update the event with new images
-          updateFields.images = images;
-        } else {
-          // If no new images are uploaded, remove the images field from updateFields
-          delete updateFields.images;
-        }
+    // Update the event with new fields and possibly new images
+    const updatedEvent = await Event.findByIdAndUpdate(eventId, { $set: updateFields }, { new: true });
 
-        // Update the event
-        const updatedEvent = await Event.findByIdAndUpdate(eventId, { $set: updateFields }, { new: true });
+    if (!updatedEvent) {
+      return res.status(404).json({ error: 'Failed to update event' });
+    }
 
-        if (!updatedEvent) {
-          return res.status(404).json({ error: 'Event not found' });
-        }
-
-        res.status(200).json({ message: 'Event updated successfully', event: updatedEvent });
-      } catch (error) {
-        console.error('Error updating event:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
+    res.status(200).json({ message: 'Event updated successfully', event: updatedEvent });
   } catch (error) {
     console.error('Error updating event:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
 
 
 

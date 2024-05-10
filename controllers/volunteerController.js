@@ -1,5 +1,7 @@
 const Volunteer = require('../models/Volunteer');
 
+
+// IMP note - we will make a small change in the get user profle controller we will also send them their volunteer status if possible or volunteer details so they can see that in their profile. 
 // Controller to become a volunteer
 const becomeVolunteer = async (req, res) => {
   try {

@@ -1,17 +1,3 @@
-// const express = require('express');
-// const router = express.Router();
-// const { createEvent, updateEvent, deleteEvent } = require('../controllers/eventController');
-
-// // Controller to create an event
-// router.post('/create', createEvent);
-
-// // Controller to update an event
-// router.put('/:eventId/update', updateEvent);
-
-// // Controller to delete an event
-// router.delete('/:eventId/delete', deleteEvent);
-
-// module.exports = router;
 
 
 const express = require('express');
@@ -46,7 +32,7 @@ router.get('/', eventController.getAllEvents);
 router.get('/:eventId', eventController.getEventById);
 
 // Route to approve or disapprove an event for admin
-router.put('/:eventId/approve', authenticateUser, eventController.eventApproveForAdmin);
+router.put('/status/:eventId', authenticateUser, eventController.eventApproveForAdmin);
 
 // Route to delete an event for admin
 router.delete('/:eventId/admin', authenticateUser, eventController.eventDeleteForAdmin);

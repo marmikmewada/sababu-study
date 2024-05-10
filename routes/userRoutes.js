@@ -63,6 +63,8 @@ router.post('/signin', userController.signin);
 
 // Update user profile route
 router.put('/profile', authenticateUser, userController.updateUserProfile);
+router.put('/member', authenticateUser, userController.updateMemberProfile);
+router.put('/household', authenticateUser, userController.updateHouseholdProfile);
 
 // Delete user account route
 router.delete('/profile', authenticateUser, userController.deleteAccount);
@@ -84,7 +86,9 @@ router.get('/admin/users/:userId', authenticateUser, userController.getUserByIdF
 router.post('/admin/users', authenticateUser, userController.createUserForAdmin);
 
 // Update user profile route for admin
-router.put('/admin/users/:userId', authenticateUser, userController.updateUserProfileForAdmin);
+router.put('/admin/user/:userId', authenticateUser, userController.updateUserProfileForAdmin);
+router.put('/admin/member:userId', authenticateUser, userController.updateMemberProfileForAdmin);
+router.put('/admin/household/:userId', authenticateUser, userController.updateHouseholdProfileForAdmin);
 
 // Delete user route for admin
 router.delete('/admin/users/:userId', authenticateUser, userController.deleteUserForAdmin);

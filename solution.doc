@@ -45,4 +45,8 @@ Additional Considerations:
 
 Handle errors during background job execution and signup count retrieval.
 Consider implementing a mechanism to notify the event organizer (if available) about status changes.
-By implementing these suggestions, you can automate the eventStatus updates based on predefined criteria, reducing manual intervention from the admin.
+By implementing these suggestions, you can automate the eventStatus updates based on predefined criteria, reducing manual intervention from the admin. 
+
+
+
+Note: badges from client side for now. later on server side

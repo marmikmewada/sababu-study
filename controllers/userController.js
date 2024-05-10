@@ -1,5 +1,9 @@
 require("dotenv").config();
+// const {User} = require("../models/User");
+const mongoose = require('mongoose'); 
 const User = require("../models/User");
+// const User = require("../models/User").default;
+
 const multer = require("multer");
 const storage = require("../config/firebase");
 const jwt = require("jsonwebtoken");
@@ -17,25 +21,29 @@ const signup = async (req, res) => {
   try {
     // Sanitize input data to prevent script injection
     const sanitizedFirstName = xss(req.body.firstName);
+    const sanitizedMiddleName = xss(req.body.middleName);
     const sanitizedLastName = xss(req.body.lastName);
     const sanitizedPhone = xss(req.body.phone);
     const sanitizedEmail = xss(req.body.email);
     const sanitizedPassword = xss(req.body.password);
+    const sanitizedGender = xss(req.body.gender);
     const sanitizedDob = xss(req.body.dob);
+    const sanitizedStreet = xss(req.body.address.street);
+    const sanitizedCity = xss(req.body.address.city);
+    const sanitizedState = xss(req.body.address.state);
+    const sanitizedZip = xss(req.body.address.zip);
 
     // Parse the date of birth in the USA format (month-date-year)
-    const [month, date, year] = sanitizedDob.split("-").map(Number);
+    const [year, month, date] = sanitizedDob.split("-").map(Number);
 
     // Calculate age based on date of birth
     const userDob = new Date(year, month - 1, date); // Months are 0-indexed in JavaScript
     const today = new Date();
     let age = today.getFullYear() - userDob.getFullYear();
-    const monthDiff = today.getMonth() - userDob.getMonth();
 
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < userDob.getDate())
-    ) {
+    // Calculate the difference in months between birth date and today
+    const monthDiff = today.getMonth() - userDob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < userDob.getDate())) {
       age--;
     }
 
@@ -48,11 +56,19 @@ const signup = async (req, res) => {
 
     const newUser = new User({
       firstName: sanitizedFirstName,
+      middleName: sanitizedMiddleName,
       lastName: sanitizedLastName,
       phone: sanitizedPhone,
       email: sanitizedEmail,
       password: sanitizedPassword,
+      gender: sanitizedGender,
       dob: userDob,
+      address: {
+        street: sanitizedStreet,
+        city: sanitizedCity,
+        state: sanitizedState,
+        zip: sanitizedZip
+      }
     });
     await newUser.save();
     res.status(201).json({ message: "User registered successfully" });
@@ -61,6 +77,7 @@ const signup = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 const signin = async (req, res) => {
   try {
@@ -92,592 +109,115 @@ const signin = async (req, res) => {
   }
 };
 
-// const updateUserProfile = async (req, res) => {
-//   try {
-//     console.log('User from request:', req.user);
-//     const  userId = req.user._id;
-//     const updateFields = req.body;
-
-//     if (!userId) {
-//       console.error('User ID is missing in the request');
-//       return res.status(400).json({ error: 'User ID is missing in the request' });
-//     }
-
-//     // Check if Membership model is available
-//     if (!Membership) {
-//       // If Membership model is not available, update the user profile directly
-//       const validUserFields = Object.keys(User.schema.paths);
-
-//       for (const field in updateFields) {
-//         if (!validUserFields.includes(field)) {
-//           return res.status(400).json({ error: `Invalid field: ${field}` });
-//         }
-//       }
-
-//       const updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//       return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-//     }
-
-//     // If Membership model is available, check membership status
-//     const membership = await Membership.findOne({ user: userId });
-
-//     if (!membership) {
-//       // If membership doesn't exist, update the user profile normally
-//       const validUserFields = Object.keys(User.schema.paths);
-
-//       for (const field in updateFields) {
-//         if (!validUserFields.includes(field)) {
-//           return res.status(400).json({ error: `Invalid field: ${field}` });
-//         }
-//       }
-
-//       const updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//       return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-//     }
-
-//     // Declare updatedUser and updatedMember variables outside the switch statement
-//     let updatedUser;
-//     let updatedMember;
-//     let updatedHousehold;
-
-//     // Determine the behavior based on the membership status
-//     switch (membership.status) {
-//       case 'applied':
-//         // If membership status is "applied", update the user profile only
-//         const validUserFields = Object.keys(User.schema.paths);
-
-//         for (const field in updateFields) {
-//           if (!validUserFields.includes(field)) {
-//             return res.status(400).json({ error: `Invalid field: ${field}` });
-//           }
-//         }
-
-//         updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//         return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-
-//       case 'active':
-//       case 'about to expire':
-//         // If membership status is "active" or "about to expire", update both user and member profiles
-//         const validMemberFields = Object.keys(Member.schema.paths);
-//         const validHouseholdFields = Object.keys(Household.schema.paths);
-
-//         // Validate update fields for both member and household
-//         for (const field in updateFields) {
-//           if (!validMemberFields.includes(field) && !validHouseholdFields.includes(field)) {
-//             return res.status(400).json({ error: `Invalid field: ${field}` });
-//           }
-//         }
-
-//         // Update user profile
-//         updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//         // Update member profile
-//         updatedMember = await Member.findOneAndUpdate(
-//           { user: userId },
-//           updateFields,
-//           { new: true }
-//         );
-
-//         // Update household profile (if applicable)
-//         if ('member' in updateFields) {
-//           updatedHousehold = await Household.findOneAndUpdate(
-//             { member: updatedMember._id },
-//             updateFields,
-//             { new: true }
-//           );
-
-//           return res.status(200).json({ message: 'User, member, and household profiles updated successfully', user: updatedUser, member: updatedMember, household: updatedHousehold });
-//         }
-
-//         return res.status(200).json({ message: 'User and member profiles updated successfully', user: updatedUser, member: updatedMember });
-
-//       case 'denied':
-//       case 'expired':
-//         // If membership status is "denied" or "expired", update only the user profile
-//         const validUserFieldsDenied = Object.keys(User.schema.paths);
-
-//         for (const field in updateFields) {
-//           if (!validUserFieldsDenied.includes(field)) {
-//             return res.status(400).json({ error: `Invalid field: ${field}` });
-//           }
-//         }
-
-//         updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//         return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-
-//       default:
-//         return res.status(500).json({ error: 'Internal server error' });
-//     }
-//   } catch (error) {
-//     console.error('Error in updating user profile:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// };
-
-// const updateUserProfile = async (req, res) => {
-//   try {
-//     console.log('User from request:', req.user);
-//     const userId = req.user._id;
-//     const updateFields = req.body;
-
-//     if (!userId) {
-//       console.error('User ID is missing in the request');
-//       return res.status(400).json({ error: 'User ID is missing in the request' });
-//     }
-
-//     // Check if Membership model is available
-//     if (!Membership) {
-//       // If Membership model is not available, update the user profile directly
-//       const validUserFields = Object.keys(User.schema.paths);
-
-//       for (const field in updateFields) {
-//         if (!validUserFields.includes(field)) {
-//           return res.status(400).json({ error: `Invalid field: ${field}` });
-//         }
-//       }
-
-//       const updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//       return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-//     }
-
-//     // If Membership model is available, check membership status
-//     const membership = await Membership.findOne({ user: userId });
-
-//     if (!membership) {
-//       // If membership doesn't exist, update the user profile normally
-//       const validUserFields = Object.keys(User.schema.paths);
-
-//       for (const field in updateFields) {
-//         if (!validUserFields.includes(field)) {
-//           return res.status(400).json({ error: `Invalid field: ${field}` });
-//         }
-//       }
-
-//       const updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//       return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-//     }
-
-//     // Declare updatedUser and updatedMember variables outside the switch statement
-//     let updatedUser;
-//     let updatedMember;
-//     let updatedHousehold;
-
-//     // Determine the behavior based on the membership status
-//     switch (membership.status) {
-//       case 'applied':
-//         // If membership status is "applied", update the user profile only
-//         const validUserFields = Object.keys(User.schema.paths);
-
-//         for (const field in updateFields) {
-//           if (!validUserFields.includes(field)) {
-//             return res.status(400).json({ error: `Invalid field: ${field}` });
-//           }
-//         }
-
-//         updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//         return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-
-//       case 'active':
-//       case 'about to expire':
-//         // If membership status is "active" or "about to expire", update both user and member profiles
-//         const validMemberFields = Object.keys(Member.schema.paths);
-//         const validHouseholdFields = Object.keys(Household.schema.paths);
-
-//         // Validate update fields for both member and household
-//         for (const field in updateFields) {
-//           if (!validMemberFields.includes(field) && !validHouseholdFields.includes(field)) {
-//             return res.status(400).json({ error: `Invalid field: ${field}` });
-//           }
-//         }
-
-//         // Update user profile
-//         updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//         // Check if 'employment' field is present in updateFields
-//         if ('employment' in updateFields) {
-//           // Update member profile including 'employment' field
-//           updatedMember = await Member.findOneAndUpdate(
-//             { user: userId },
-//             { $set: { employment: updateFields.employment, ...updateFields } }, // Merge 'employment' with other fields
-//             { new: true }
-//           );
-//         } else {
-//           // Update member profile excluding 'employment' field
-//           updatedMember = await Member.findOneAndUpdate(
-//             { user: userId },
-//             updateFields,
-//             { new: true }
-//           );
-//         }
-
-//         // Update household profile (if applicable)
-//         if ('member' in updateFields) {
-//           updatedHousehold = await Household.findOneAndUpdate(
-//             { member: updatedMember._id },
-//             updateFields,
-//             { new: true }
-//           );
-
-//           return res.status(200).json({ message: 'User, member, and household profiles updated successfully', user: updatedUser, member: updatedMember, household: updatedHousehold });
-//         }
-
-//         return res.status(200).json({ message: 'User and member profiles updated successfully', user: updatedUser, member: updatedMember });
-
-//       case 'denied':
-//       case 'expired':
-//         // If membership status is "denied" or "expired", update only the user profile
-//         const validUserFieldsDenied = Object.keys(User.schema.paths);
-
-//         for (const field in updateFields) {
-//           if (!validUserFieldsDenied.includes(field)) {
-//             return res.status(400).json({ error: `Invalid field: ${field}` });
-//           }
-//         }
-
-//         updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//         return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-
-//       default:
-//         return res.status(500).json({ error: 'Internal server error' });
-//     }
-//   } catch (error) {
-//     console.error('Error in updating user profile:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// };
-
-// const updateUserProfile = async (req, res) => {
-//   try {
-//     console.log('User from request:', req.user);
-//     const userId = req.user._id;
-//     const updateFields = req.body;
-
-//     if (!userId) {
-//       console.error('User ID is missing in the request');
-//       return res.status(400).json({ error: 'User ID is missing in the request' });
-//     }
-
-//     // Check if Membership model is available
-//     if (!Membership) {
-//       // If Membership model is not available, update the user profile directly
-//       const validUserFields = Object.keys(User.schema.paths);
-
-//       for (const field in updateFields) {
-//         if (!validUserFields.includes(field)) {
-//           return res.status(400).json({ error: `Invalid field: ${field}` });
-//         }
-//       }
-
-//       const updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//       return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-//     }
-
-//     // If Membership model is available, check membership status
-//     const membership = await Membership.findOne({ user: userId });
-
-//     if (!membership) {
-//       // If membership doesn't exist, update the user profile normally
-//       const validUserFields = Object.keys(User.schema.paths);
-
-//       for (const field in updateFields) {
-//         if (!validUserFields.includes(field)) {
-//           return res.status(400).json({ error: `Invalid field: ${field}` });
-//         }
-//       }
-
-//       const updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//       return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-//     }
-
-//     // Declare updatedUser and updatedMember variables outside the switch statement
-//     let updatedUser;
-//     let updatedMember;
-//     let updatedHousehold;
-
-//     // Determine the behavior based on the membership status
-//     switch (membership.status) {
-//       case 'applied':
-//         // If membership status is "applied", update the user profile only
-//         const validUserFields = Object.keys(User.schema.paths);
-
-//         for (const field in updateFields) {
-//           if (!validUserFields.includes(field)) {
-//             return res.status(400).json({ error: `Invalid field: ${field}` });
-//           }
-//         }
-
-//         updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//         return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-
-//       case 'active':
-//       case 'about to expire':
-//         // If membership status is "active" or "about to expire", update both user and member profiles
-//         const validMemberFields = Object.keys(Member.schema.paths);
-//         const validHouseholdFields = Object.keys(Household.schema.paths);
-
-//         // Validate update fields for both member and household
-//         for (const field in updateFields) {
-//           if (!validMemberFields.includes(field) && !validHouseholdFields.includes(field)) {
-//             return res.status(400).json({ error: `Invalid field: ${field}` });
-//           }
-//         }
-
-//         // Update user profile
-//         updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//         // Update member profile
-//         updatedMember = await Member.findOneAndUpdate(
-//           { user: userId },
-//           updateFields, // Update member profile with provided fields
-//           { new: true }
-//         );
-
-//         // Update household profile (if applicable)
-//         if ('member' in updateFields) {
-//           updatedHousehold = await Household.findOneAndUpdate(
-//             { member: updatedMember._id },
-//             updateFields, // Update household profile with provided fields
-//             { new: true }
-//           );
-
-//           return res.status(200).json({ message: 'User, member, and household profiles updated successfully', user: updatedUser, member: updatedMember, household: updatedHousehold });
-//         }
-
-//         return res.status(200).json({ message: 'User and member profiles updated successfully', user: updatedUser, member: updatedMember });
-
-//       case 'denied':
-//       case 'expired':
-//         // If membership status is "denied" or "expired", update only the user profile
-//         const validUserFieldsDenied = Object.keys(User.schema.paths);
-
-//         for (const field in updateFields) {
-//           if (!validUserFieldsDenied.includes(field)) {
-//             return res.status(400).json({ error: `Invalid field: ${field}` });
-//           }
-//         }
-
-//         updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
-
-//         return res.status(200).json({ message: 'User profile updated successfully', user: updatedUser });
-
-//       default:
-//         return res.status(500).json({ error: 'Internal server error' });
-//     }
-//   } catch (error) {
-//     console.error('Error in updating user profile:', error);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// };
-
 const updateUserProfile = async (req, res) => {
   try {
-    console.log("User from request:", req.user);
-    const userId = req.user._id; // Extract the user ID from the received data
-    console.log("UserID:", userId);
-    const User = req.user;
-    console.log("User:", User);
+    const userId = req.user._id;
     const updateFields = req.body;
-    console.log("Data received:", updateFields);
 
+    // Check if userId is provided
     if (!userId) {
       console.error("User ID is missing in the request");
       return res.status(400).json({ error: "User ID is missing in the request" });
     }
 
-    // Check if Membership model is available
-    if (!Membership) {
-      // If Membership model is not available, update the user profile directly
-      const validUserFields = Object.keys(User.schema.paths);
-      console.log("Valid User Fields:", validUserFields);
+    // Find the user by ID and update the fields
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateFields }, // Update all fields provided in the request body
+      { new: true } // Return the updated document
+    );
 
-      // Flatten the updateFields object to include only top-level fields valid for update
-      const updateUserFields = {};
-      for (const field in updateFields) {
-        if (validUserFields.includes(field)) {
-          updateUserFields[field] = updateFields[field];
-        }
-      }
-
-      // Update user profile
-      const updatedUserProfile = await User.findByIdAndUpdate(
-        userId,
-        { $set: updateUserFields },
-        { new: true }
-      );
-      return res.status(200).json({
-        message: "User profile updated successfully",
-        user: updatedUserProfile,
-      });
+    // If user not found, return error
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
     }
 
-    // If Membership model is available, check membership status
-    const membership = await Membership.findOne({ user: userId });
-    if (!membership) {
-      // If membership doesn't exist, update the user profile normally
-      const validUserFields = Object.keys(User.schema.paths);
-      console.log("Valid User Fields:", validUserFields);
+    // Log the fields saved in the database
+    console.log("Fields saved in the database:", updatedUser);
 
-      // Flatten the updateFields object to include only top-level fields valid for update
-      const updateUserFields = {};
-      for (const field in updateFields) {
-        if (validUserFields.includes(field)) {
-          updateUserFields[field] = updateFields[field];
-        }
-      }
-
-      // Update user profile
-      const updatedUserProfile = await User.findByIdAndUpdate(
-        userId,
-        { $set: updateUserFields },
-        { new: true }
-      );
-      return res.status(200).json({
-        message: "User profile updated successfully",
-        user: updatedUserProfile,
-      });
-    }
-
-    // Determine the behavior based on the membership status
-    switch (membership.status) {
-      case "active":
-      case "about to expire":
-        // Update member and household profiles
-        const validMemberFields = Object.keys(Member.schema.paths);
-        console.log("Valid Member Fields:", validMemberFields);
-
-        // Validate update fields for member
-        const updateMemberFields = {};
-        for (const field in updateFields) {
-          if (validMemberFields.includes(field)) {
-            if (field === "user" && updateFields.user && updateFields.user._id) {
-              // Extract the _id from the User object and pass it as a string or ObjectId
-              updateMemberFields.user = new ObjectId(updateFields.user._id);
-            } else {
-              updateMemberFields[field] = updateFields[field];
-            }
-          }
-        }
-
-        // Log the update fields for member
-        console.log("Update Member Fields:", updateMemberFields);
-
-        // Check if there are valid fields for updating the member profile
-        if (Object.keys(updateMemberFields).length > 0) {
-          console.log("User ID before update:", userId);
-          // Ensure the correct user ID is set in the updateMemberFields
-          updateMemberFields.user = userId;
-
-          // Find the existing member profile or create a new one if it doesn't exist
-          let updatedMember = await Member.findOneAndUpdate(
-            { user: userId },
-            { $set: updateMemberFields },
-            { new: true }
-          );
-
-          // If member profile doesn't exist, create a new one
-          if (!updatedMember) {
-            updatedMember = new Member(updateMemberFields);
-            updatedMember.user = userId;
-            await updatedMember.save();
-          }
-
-          // Update household profile if applicable
-          const validHouseholdFields = Object.keys(Household.schema.paths);
-          console.log("Valid Household Fields:", validHouseholdFields);
-
-          const updateHouseholdFields = {};
-          for (const field in updateFields.household) {
-            if (validHouseholdFields.includes(field)) {
-              updateHouseholdFields[field] = updateFields.household[field];
-            }
-          }
-
-          const updatedHousehold = await Household.findOneAndUpdate(
-            { member: updatedMember._id },
-            { $set: updateHouseholdFields },
-            { new: true }
-          );
-
-          return res.status(200).json({
-            message: "Member and household profiles updated successfully",
-            member: updatedMember,
-            household: updatedHousehold,
-          });
-        } else {
-          console.log("No valid fields for updating member profile");
-          return res.status(200).json({
-            message: "No valid fields for updating member profile",
-          });
-        }
-
-      case "applied":
-        // Treat as normal user update
-        const validUserFieldsApplied = Object.keys(User.schema.paths);
-        console.log("Valid User Fields:", validUserFieldsApplied);
-
-        // Flatten the updateFields object to include only top-level fields valid for update
-        const updateUserFieldsApplied = {};
-        for (const field in updateFields) {
-          if (validUserFieldsApplied.includes(field)) {
-            updateUserFieldsApplied[field] = updateFields[field];
-          }
-        }
-
-        // Update user profile
-        const updatedUserProfileApplied = await User.findByIdAndUpdate(
-          userId,
-          { $set: updateUserFieldsApplied },
-          { new: true }
-        );
-        return res.status(200).json({
-          message: "User profile updated successfully",
-          user: updatedUserProfileApplied,
-        });
-
-      case "denied":
-      case "expired":
-        // Update only the user profile
-        const validUserFieldsDenied = Object.keys(User.schema.paths);
-        console.log("Valid User Fields (Denied/Expired):", validUserFieldsDenied);
-
-        // Flatten the updateFields object for user to include only top-level fields valid for update
-        const updateUserFieldsDenied = {};
-        for (const field in updateFields.user) {
-          if (validUserFieldsDenied.includes(field)) {
-            updateUserFieldsDenied[field] = updateFields.user[field];
-          }
-        }
-
-        // Update user profile
-        const updatedUserProfileDenied = await User.findByIdAndUpdate(
-          userId,
-          { $set: updateUserFieldsDenied },
-          { new: true }
-        );
-        return res.status(200).json({
-          message: "User profile updated successfully",
-          user: updatedUserProfileDenied,
-        });
-
-      default:
-        return res.status(500).json({ error: "Internal server error" });
-    }
+    // If user updated successfully, return success message and updated user data
+    return res.status(200).json({
+      message: "User profile updated successfully",
+      user: updatedUser,
+    });
   } catch (error) {
-    console.error("Error in updating user profile:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error updating user profile:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
+
+
+const updateMemberProfile = async (req, res) => {
+  const userId = req.user._id;  // Assuming req.user is populated by your authentication middleware
+  const updates = req.body;
+
+  try {
+    // Find the member by user ID and update
+    const member = await Member.findOneAndUpdate({ user: userId }, { $set: updates }, { new: true, runValidators: true });
+
+    if (!member) {
+      return res.status(404).send({ message: 'Member not found' });
+    }
+
+    res.send({ message: 'Profile updated successfully', member });
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to update member profile', error: error.message });
+  }
+};
+
+// const updateHouseholdProfile = async (req, res) => {
+//   const userId = req.user._id;  // Assuming req.user is populated by your authentication middleware
+
+//   try {
+//     // First find the member to get the household ID
+//     const member = await Member.findOne({ user: userId });
+//     if (!member) {
+//       return res.status(404).send({ message: 'Member not found' });
+//     }
+
+//     // Now find and update the associated household
+//     const updates = req.body;
+//     const household = await Household.findOneAndUpdate({ member: member._id }, { $set: updates }, { new: true, runValidators: true });
+    
+//     if (!household) {
+//       return res.status(404).send({ message: 'Household not found' });
+//     }
+
+//     res.send({ message: 'Household profile updated successfully', household });
+//   } catch (error) {
+//     res.status(500).send({ message: 'Failed to update household profile', error: error.message });
+//   }
+// };
+
+
+const updateHouseholdProfile = async (req, res) => {
+  const userId = req.user._id;  // Assuming req.user is populated by your authentication middleware
+
+  try {
+    // First find the member to get the household ID
+    const member = await Member.findOne({ user: userId });
+    if (!member) {
+      return res.status(404).send({ message: 'Member not found' });
+    }
+
+    // Define the updates
+    const updates = req.body;
+
+    // Find the household associated with the member or create it if it does not exist
+    const household = await Household.findOneAndUpdate(
+      { member: member._id }, 
+      { $set: updates }, 
+      { new: true, upsert: true, runValidators: true }  // Using upsert option
+    );
+
+    // Send the updated or newly created household back to the client
+    res.send({ message: 'Household profile updated successfully', household });
+  } catch (error) {
+    console.error('Failed to update or create household:', error);
+    res.status(500).send({ message: 'Failed to update or create household profile', error: error.message });
+  }
+};
+
 
 
 const deleteAccount = async (req, res) => {
@@ -852,138 +392,190 @@ const createUserForAdmin = async (req, res) => {
   }
 };
 
+
+// const updateUserProfileForAdmin = async (req, res) => {
+//   try {
+//     const userId = req.params.userId;
+//     const updateFields = req.body;
+
+//     // Check if the user is an admin
+//     if (req.user.role !== "admin") {
+//       return res
+//         .status(403)
+//         .json({ error: "You are not authorized to update user profiles" });
+//     }
+
+//     const user = await User.findById(userId);
+
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     // Check membership status
+//     const membership = await Membership.findOne({ user: userId });
+
+//     // Declare updatedUser and updatedMember variables outside the switch statement
+//     let updatedUser;
+//     let updatedMember;
+
+//     // Determine the behavior based on the membership status
+//     switch (membership ? membership.status : null) {
+//       case "active":
+//       case "about to expire":
+//         // If membership status is "active" or "about to expire", update both user and member profiles
+//         const validMemberFields = Object.keys(Member.schema.paths);
+
+//         // Validate update fields for member
+//         for (const field in updateFields) {
+//           if (!validMemberFields.includes(field)) {
+//             return res.status(400).json({ error: `Invalid field: ${field}` });
+//           }
+//         }
+
+//         // Update user profile
+//         updatedUser = await User.findByIdAndUpdate(
+//           userId,
+//           { $set: updateFields },
+//           { new: true }
+//         );
+
+//         // Update member profile
+//         updatedMember = await Member.findOneAndUpdate(
+//           { user: userId },
+//           updateFields,
+//           { new: true }
+//         );
+
+//         return res.status(200).json({
+//           message: "User and member profiles updated successfully",
+//           user: updatedUser,
+//           member: updatedMember,
+//         });
+
+//       case "denied":
+//       case "expired":
+//         // If membership status is "denied" or "expired", update only the user profile
+//         const validUserFieldsDenied = Object.keys(User.schema.paths);
+
+//         for (const field in updateFields) {
+//           if (!validUserFieldsDenied.includes(field)) {
+//             return res.status(400).json({ error: `Invalid field: ${field}` });
+//           }
+//         }
+
+//         updatedUser = await User.findByIdAndUpdate(
+//           userId,
+//           { $set: updateFields },
+//           { new: true }
+//         );
+
+//         return res.status(200).json({
+//           message: "User profile updated successfully",
+//           user: updatedUser,
+//         });
+
+//       case "applied":
+//         // If membership status is "applied", update the user profile only
+//         const validUserFields = Object.keys(User.schema.paths);
+
+//         for (const field in updateFields) {
+//           if (!validUserFields.includes(field)) {
+//             return res.status(400).json({ error: `Invalid field: ${field}` });
+//           }
+//         }
+
+//         updatedUser = await User.findByIdAndUpdate(
+//           userId,
+//           { $set: updateFields },
+//           { new: true }
+//         );
+
+//         return res.status(200).json({
+//           message: "User profile updated successfully",
+//           user: updatedUser,
+//         });
+
+//       default:
+//         return res.status(500).json({ error: "Internal server error" });
+//     }
+//   } catch (error) {
+//     console.error("Error in updating user profile for admin:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
 const updateUserProfileForAdmin = async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: "Unauthorized access" });
+  }
+
+  const userId = req.params.userId;
+  const updateFields = req.body;
+
   try {
-    const userId = req.params.userId;
-    const updateFields = req.body;
+    const updatedUser = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true });
 
-    // Check if the user is an admin
-    if (req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({ error: "You are not authorized to update user profiles" });
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    // Check membership status
-    const membership = await Membership.findOne({ user: userId });
-
-    if (!membership) {
-      // If membership doesn't exist, update the user profile normally
-      const validUserFields = Object.keys(User.schema.paths);
-
-      for (const field in updateFields) {
-        if (!validUserFields.includes(field)) {
-          return res.status(400).json({ error: `Invalid field: ${field}` });
-        }
-      }
-
-      const updatedUser = await User.findByIdAndUpdate(
-        userId,
-        { $set: updateFields },
-        { new: true }
-      );
-
-      return res.status(200).json({
-        message: "User profile updated successfully",
-        user: updatedUser,
-      });
-    }
-
-    // Declare updatedUser and updatedMember variables outside the switch statement
-    let updatedUser;
-    let updatedMember;
-
-    // Determine the behavior based on the membership status
-    switch (membership.status) {
-      case "applied":
-        // If membership status is "applied", update the user profile only
-        const validUserFields = Object.keys(User.schema.paths);
-
-        for (const field in updateFields) {
-          if (!validUserFields.includes(field)) {
-            return res.status(400).json({ error: `Invalid field: ${field}` });
-          }
-        }
-
-        updatedUser = await User.findByIdAndUpdate(
-          userId,
-          { $set: updateFields },
-          { new: true }
-        );
-
-        return res.status(200).json({
-          message: "User profile updated successfully",
-          user: updatedUser,
-        });
-
-      case "active":
-      case "about to expire":
-        // If membership status is "active" or "about to expire", update both user and member profiles
-        const validMemberFields = Object.keys(Member.schema.paths);
-
-        // Validate update fields for member
-        for (const field in updateFields) {
-          if (!validMemberFields.includes(field)) {
-            return res.status(400).json({ error: `Invalid field: ${field}` });
-          }
-        }
-
-        // Update user profile
-        updatedUser = await User.findByIdAndUpdate(
-          userId,
-          { $set: updateFields },
-          { new: true }
-        );
-
-        // Update member profile
-        updatedMember = await Member.findOneAndUpdate(
-          { user: userId },
-          updateFields,
-          { new: true }
-        );
-
-        return res.status(200).json({
-          message: "User and member profiles updated successfully",
-          user: updatedUser,
-          member: updatedMember,
-        });
-
-      case "denied":
-      case "expired":
-        // If membership status is "denied" or "expired", update only the user profile
-        const validUserFieldsDenied = Object.keys(User.schema.paths);
-
-        for (const field in updateFields) {
-          if (!validUserFieldsDenied.includes(field)) {
-            return res.status(400).json({ error: `Invalid field: ${field}` });
-          }
-        }
-
-        updatedUser = await User.findByIdAndUpdate(
-          userId,
-          { $set: updateFields },
-          { new: true }
-        );
-
-        return res.status(200).json({
-          message: "User profile updated successfully",
-          user: updatedUser,
-        });
-
-      default:
-        return res.status(500).json({ error: "Internal server error" });
-    }
+    return res.status(200).json({
+      message: "User profile updated successfully",
+      user: updatedUser
+    });
   } catch (error) {
-    console.error("Error in updating user profile for admin:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error updating user profile:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
+const updateMemberProfileForAdmin = async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: "Unauthorized access" });
+  }
+
+  const userId = req.params.userId;
+  try {
+    const member = await Member.findOneAndUpdate({ user: userId }, { $set: req.body }, { new: true, runValidators: true });
+
+    if (!member) {
+      return res.status(404).send({ message: 'Member not found' });
+    }
+
+    res.send({ message: 'Member profile updated successfully', member });
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to update member profile', error: error.message });
+  }
+};
+
+const updateHouseholdProfileForAdmin = async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: "Unauthorized access" });
+  }
+
+  const userId = req.params.userId;
+  try {
+    const member = await Member.findOne({ user: userId });
+    if (!member) {
+      return res.status(404).send({ message: 'Member not found' });
+    }
+
+    const household = await Household.findOneAndUpdate(
+      { member: member._id }, 
+      { $set: req.body }, 
+      { new: true, upsert: true, runValidators: true }
+    );
+
+    if (!household) {
+      return res.status(404).send({ message: 'Household not found' });
+    }
+
+    res.send({ message: 'Household profile updated successfully', household });
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to update household profile', error: error.message });
+  }
+};
+
+
+
 
 const deleteUserForAdmin = async (req, res) => {
   try {
@@ -1011,6 +603,8 @@ module.exports = {
   signup,
   signin,
   updateUserProfile,
+  updateMemberProfile,
+  updateHouseholdProfile,
   deleteAccount,
   uploadProfileImage,
   getUserProfile,
@@ -1018,5 +612,7 @@ module.exports = {
   getUserByIdForAdmin,
   createUserForAdmin,
   updateUserProfileForAdmin,
+  updateMemberProfileForAdmin,
+  updateHouseholdProfileForAdmin,
   deleteUserForAdmin,
 };
