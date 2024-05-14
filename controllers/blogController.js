@@ -5,112 +5,532 @@ const storage = require('../config/firebase');
 const multerStorage = multer.memoryStorage();
 const multerUpload = multer({ storage: multerStorage }).array('images', 5); // Limiting to 5 images
 
-// Controller to create a blog post
+
 const createBlogPost = async (req, res) => {
   try {
-    // Upload images to Firebase Storage if provided
-    multerUpload(req, res, async (err) => {
-      if (err instanceof multer.MulterError) {
-        console.error('Multer error:', err);
-        return res.status(500).json({ error: 'Internal server error' });
-      } else if (err) {
-        console.error('Error uploading images:', err);
-        return res.status(500).json({ error: 'Internal server error' });
+      const { title, content, tags } = req.body;
+      const uploadedImageUrls = [];
+
+      if (req.files && req.files.length > 0) {
+          const bucket = storage.bucket();
+
+          const uploadPromises = req.files.map(file => {
+              const blob = bucket.file(`${Date.now()}_${file.originalname}`);
+              const blobStream = blob.createWriteStream({
+                  metadata: {
+                      contentType: file.mimetype,
+                  },
+              });
+
+              return new Promise((resolve, reject) => {
+                  blobStream.on('error', error => reject(error));
+                  blobStream.on('finish', async () => {
+                  //     try {
+                  //         const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                  //         uploadedImageUrls.push(publicUrl);
+                  //         resolve(publicUrl);
+                  //     } catch (error) {
+                  //         reject(error);
+                  //     }
+                  // });
+                  blob.makePublic().then(() => {
+                    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                    uploadedImageUrls.push(publicUrl);
+                    resolve(publicUrl);
+                  }).catch(error => reject(error));
+                });
+                  blobStream.end(file.buffer);
+              });
+          });
+
+          // Wait for all uploads to complete
+          await Promise.all(uploadPromises);
       }
 
-      try {
-        // Extract uploaded image URLs
-        const images = req.files ? req.files.map(file => file.location) : [];
-
-        // Extract data from request body
-        const { title, content, author, tags } = req.body;
-
-        // Create a new blog post instance
-        const newBlogPost = new BlogPost({
+      const newBlogPost = new BlogPost({
           title,
           content,
-          author,
-          tags,
-          images: images || [] // If no images are provided, set it to an empty array
-        });
+          tags: tags.split(',').map(tag => tag.trim()),
+          images: uploadedImageUrls,
+          author: req.user._id
+      });
 
-        // Save the blog post to the database
-        await newBlogPost.save();
+      await newBlogPost.save();
 
-        res.status(201).json({ message: 'Blog post created successfully', blogPost: newBlogPost });
-      } catch (error) {
-        console.error('Error creating blog post:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
+      res.status(201).json({ message: 'Blog post created successfully', blogPost: newBlogPost });
   } catch (error) {
-    console.error('Error creating blog post:', error);
-    res.status(500).json({ error: 'Internal server error' });
+      console.error('Error creating blog post:', error);
+      res.status(500).json({ error: 'Internal server error' });
   }
-}; 
+};
+
+
+
+// const createBlogPost = async (req, res) => {
+//   try {
+//     const { title, content, tags } = req.body;
+//     const uploadedImageUrls = [];
+
+//     if (req.files && req.files.length > 0) {
+//       const bucket = storage.bucket();
+
+//       const uploadPromises = req.files.map(file => {
+//         const blob = bucket.file(`blog/${Date.now()}_${file.originalname}`);
+//         const blobStream = blob.createWriteStream({
+//           metadata: {
+//             contentType: file.mimetype,
+//           },
+//         });
+
+//         return new Promise((resolve, reject) => {
+//           blobStream.on('error', error => reject(error));
+//           blobStream.on('finish', async () => {
+//             try {
+//               const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+//               uploadedImageUrls.push(publicUrl);
+//               resolve(publicUrl);
+//             } catch (error) {
+//               reject(error);
+//             }
+//           });
+//           blobStream.end(file.buffer);
+//         });
+//       });
+
+//       // Wait for all uploads to complete
+//       await Promise.all(uploadPromises);
+//     }
+
+//     const newBlogPost = new BlogPost({
+//       title,
+//       content,
+//       tags: tags.split(',').map(tag => tag.trim()),
+//       images: uploadedImageUrls,
+//       author: req.user._id
+//     });
+
+//     await newBlogPost.save();
+
+//     res.status(201).json({ message: 'Blog post created successfully', blogPost: newBlogPost });
+//   } catch (error) {
+//     console.error('Error creating blog post:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
 
 const updateBlogPost = async (req, res) => {
-    try {
-      const blogPostId = req.params.blogPostId;
-      const updateFields = req.body;
-  
-      // Reset isApproved status to false on update
-      updateFields.isApproved = false;
-  
-      // Upload images to Firebase Storage if provided
-      multerUpload(req, res, async (err) => {
-        if (err instanceof multer.MulterError) {
-          console.error('Multer error:', err);
-          return res.status(500).json({ error: 'Internal server error' });
-        } else if (err) {
-          console.error('Error uploading images:', err);
-          return res.status(500).json({ error: 'Internal server error' });
-        }
-  
-        try {
-          // Extract uploaded image URLs
-          const images = req.files ? req.files.map(file => file.location) : [];
-  
-          // If new images are uploaded, delete previously stored image URLs
-          if (images.length > 0) {
-            const blogPost = await BlogPost.findById(blogPostId);
-            // Delete previous images from Firebase Storage
-            for (const imageUrl of blogPost.images) {
-              // Your code to delete images from Firebase Storage goes here
-            }
-            // Update the blog post with new images
-            updateFields.images = images;
-          } else {
-            // If no new images are uploaded, do not modify the images field in updateFields
-            delete updateFields.images;
-          }
-  
-          // Update the blog post
-          const updatedBlogPost = await BlogPost.findByIdAndUpdate(
-            blogPostId,
-            { $set: updateFields },
-            { new: true }
-          );
-  
-          if (!updatedBlogPost) {
-            return res.status(404).json({ error: 'Blog post not found' });
-          }
-  
-          res.status(200).json({ message: 'Blog post updated successfully', blogPost: updatedBlogPost });
-        } catch (error) {
-          console.error('Error updating blog post:', error);
-          res.status(500).json({ error: 'Internal server error' });
-        }
-      });
-    } catch (error) {
-      console.error('Error updating blog post:', error);
-      res.status(500).json({ error: 'Internal server error' });
+  try {
+    const blogPostId = req.params.blogPostId;
+    const blogPost = await BlogPost.findById(blogPostId);
+
+    if (!blogPost) {
+      return res.status(404).json({ error: 'Blog post not found' });
     }
-  }; 
-  
- 
-  // Controller to delete a blog post
-const deleteBlogPost = async (req, res) => {
+
+    if (blogPost.author.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
+    const updatedFields = {
+      title: req.body.title || blogPost.title,
+      content: req.body.content || blogPost.content,
+      tags: req.body.tags ? req.body.tags.split(',').map(tag => tag.trim()) : blogPost.tags
+    };
+
+    // Clear existing image URLs from the document if new images are uploaded
+    if (req.files && req.files.length > 0) {
+      blogPost.images = []; // Clear out old images from the document
+
+      const bucket = storage.bucket(); // Use the Firebase storage bucket
+
+      const uploadPromises = req.files.map(file => {
+        const blob = bucket.file(`blog/${Date.now()}_${file.originalname}`);
+        const blobStream = blob.createWriteStream({
+          metadata: {
+            contentType: file.mimetype,
+          },
+        });
+
+        return new Promise((resolve, reject) => {
+          blobStream.on('error', error => reject(error));
+          blobStream.on('finish', async () => {
+            try {
+              const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+              blogPost.images.push(publicUrl);
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          });
+          blobStream.end(file.buffer);
+        });
+      });
+
+      // Wait for all new images to be uploaded
+      await Promise.all(uploadPromises);
+      updatedFields.images = blogPost.images; // Update image array with new URLs
+    }
+
+    // Update the blog post with new fields and possibly new images
+    await BlogPost.findByIdAndUpdate(blogPostId, { $set: updatedFields }, { new: true });
+
+    res.status(200).json({ message: 'Blog post updated successfully', blogPost: updatedFields });
+  } catch (error) {
+    console.error('Error updating blog post:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
+// const createBlogPost = async (req, res) => {
+//   try {
+//     const { title, content, tags } = req.body;
+//     const uploadedImageUrls = [];
+
+//     if (req.files && req.files.length > 0) {
+//       const bucket = storage.bucket();
+
+//       for (const file of req.files) {
+//         const blob = bucket.file(`blog/${Date.now()}_${file.originalname}`);
+//         const blobStream = blob.createWriteStream({
+//           metadata: {
+//             contentType: file.mimetype,
+//           },
+//         });
+
+//         await new Promise((resolve, reject) => {
+//           blobStream.on('error', error => reject(error));
+//           blobStream.on('finish', async () => {
+//             try {
+//               const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+//               uploadedImageUrls.push(publicUrl); // Push the URL into the uploadedImageUrls array
+//               resolve(publicUrl);
+//             } catch (error) {
+//               reject(error);
+//             }
+//           });
+//           blobStream.end(file.buffer);
+//         });
+//       }
+//     }
+
+//     const newBlogPost = new BlogPost({
+//       title,
+//       content,
+//       tags: tags.split(',').map(tag => tag.trim()),
+//       images: uploadedImageUrls, // Assign the uploadedImageUrls array to the images field
+//       author: req.user._id
+//     });
+
+//     await newBlogPost.save();
+
+//     res.status(201).json({ message: 'Blog post created successfully', blogPost: newBlogPost });
+//   } catch (error) {
+//     console.error('Error creating blog post:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+
+// const updateBlogPost = async (req, res) => {
+//   try {
+//     const blogPostId = req.params.blogPostId;
+//     const blogPost = await BlogPost.findById(blogPostId);
+
+//     if (!blogPost) {
+//       return res.status(404).json({ error: 'Blog post not found' });
+//     }
+
+//     if (blogPost.author.toString() !== req.user._id.toString()) {
+//       return res.status(403).json({ error: 'Unauthorized access' });
+//     }
+
+//     blogPost.images = [];
+
+//     if (req.files && req.files.length > 0) {
+//       const bucket = storage.bucket();
+
+//       for (const file of req.files) {
+//         const blob = bucket.file(`blog/${Date.now()}_${file.originalname}`);
+//         const blobStream = blob.createWriteStream({
+//           metadata: {
+//             contentType: file.mimetype,
+//           },
+//         });
+
+//         await new Promise((resolve, reject) => {
+//           blobStream.on('error', error => reject(error));
+//           blobStream.on('finish', async () => {
+//             try {
+//               const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+//               blogPost.images.push(publicUrl); // Push the URL into the blogPost.images array
+//               resolve(publicUrl);
+//             } catch (error) {
+//               reject(error);
+//             }
+//           });
+//           blobStream.end(file.buffer);
+//         });
+//       }
+//     }
+
+//     blogPost.title = req.body.title || blogPost.title;
+//     blogPost.content = req.body.content || blogPost.content;
+//     blogPost.tags = req.body.tags.split(',').map(tag => tag.trim());
+
+//     await blogPost.save();
+
+//     res.status(200).json({ message: 'Blog post updated successfully', blogPost });
+//   } catch (error) {
+//     console.error('Error updating blog post:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+
+
+// const createBlogPost = async (req, res) => {
+//   try {
+//     const { title, content, tags } = req.body;
+//     const uploadedImageUrls = [];
+
+//     if (req.files && req.files.length > 0) {
+//       const bucket = storage.bucket();
+
+//       // Map each file to a promise that uploads it to Firebase Storage
+//       const uploadPromises = req.files.map(file => {
+//         const blob = bucket.file(`blog/${Date.now()}_${file.originalname}`);
+//         const blobStream = blob.createWriteStream({
+//           metadata: {
+//             contentType: file.mimetype,
+//           },
+//         });
+
+//         return new Promise((resolve, reject) => {
+//           blobStream.on('error', error => reject(error));
+//           blobStream.on('finish', async () => {
+//             try {
+//               const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+//               uploadedImageUrls.push(publicUrl);
+//               resolve(publicUrl);
+//             } catch (error) {
+//               reject(error);
+//             }
+//           });
+//           blobStream.end(file.buffer);
+//         });
+//       });
+
+//       // Wait for all uploads to complete before proceeding
+//       await Promise.all(uploadPromises);
+//     }
+
+//     const newBlogPost = new BlogPost({
+//       title,
+//       content,
+//       tags: tags.split(',').map(tag => tag.trim()),
+//       images: uploadedImageUrls,
+//       author: req.user._id
+//     });
+
+//     await newBlogPost.save();
+
+//     res.status(201).json({ message: 'Blog post created successfully', blogPost: newBlogPost });
+//   } catch (error) {
+//     console.error('Error creating blog post:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+
+// const updateBlogPost = async (req, res) => {
+//   try {
+//     const blogPostId = req.params.blogPostId;
+//     const blogPost = await BlogPost.findById(blogPostId);
+
+//     if (!blogPost) {
+//       return res.status(404).json({ error: 'Blog post not found' });
+//     }
+
+//     if (blogPost.author.toString() !== req.user._id.toString()) {
+//       return res.status(403).json({ error: 'Unauthorized access' });
+//     }
+
+//     blogPost.images = [];
+
+//     if (req.files && req.files.length > 0) {
+//       const bucket = storage.bucket();
+
+//       // Map each file to a promise that uploads it to Firebase Storage
+//       const uploadPromises = req.files.map(file => {
+//         const blob = bucket.file(`blog/${Date.now()}_${file.originalname}`);
+//         const blobStream = blob.createWriteStream({
+//           metadata: {
+//             contentType: file.mimetype,
+//           },
+//         });
+
+//         return new Promise((resolve, reject) => {
+//           blobStream.on('error', error => reject(error));
+//           blobStream.on('finish', async () => {
+//             try {
+//               const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+//               blogPost.images.push(publicUrl);
+//               resolve(publicUrl);
+//             } catch (error) {
+//               reject(error);
+//             }
+//           });
+//           blobStream.end(file.buffer);
+//         });
+//       });
+
+//       // Wait for all uploads to complete before proceeding
+//       await Promise.all(uploadPromises);
+//     }
+
+//     blogPost.title = req.body.title || blogPost.title;
+//     blogPost.content = req.body.content || blogPost.content;
+//     blogPost.tags = req.body.tags.split(',').map(tag => tag.trim());
+
+//     await blogPost.save();
+
+//     res.status(200).json({ message: 'Blog post updated successfully', blogPost });
+//   } catch (error) {
+//     console.error('Error updating blog post:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+
+
+
+
+
+
+// const createBlogPost = async (req, res) => {
+//   try {
+//     const { title, content, tags } = req.body;
+//     const uploadedImageUrls = [];
+
+//     if (req.files && req.files.length > 0) {
+//       const bucket = storage.bucket();
+
+//       for (const file of req.files) {
+//         const blob = bucket.file(`blog/${Date.now()}_${file.originalname}`);
+//         const blobStream = blob.createWriteStream({
+//           metadata: {
+//             contentType: file.mimetype,
+//           },
+//         });
+
+//         await new Promise((resolve, reject) => {
+//           blobStream.on('error', error => reject(error));
+//           blobStream.on('finish', async () => {
+//             try {
+//               const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+//               uploadedImageUrls.push(publicUrl);
+//               resolve(publicUrl);
+//             } catch (error) {
+//               reject(error);
+//             }
+//           });
+//           blobStream.end(file.buffer);
+//         });
+//       }
+//     }
+
+//     const newBlogPost = new BlogPost({
+//       title,
+//       content,
+//       tags: tags.split(',').map(tag => tag.trim()),
+//       images: uploadedImageUrls,
+//       author: req.user._id
+//     });
+
+//     await newBlogPost.save();
+
+//     res.status(201).json({ message: 'Blog post created successfully', blogPost: newBlogPost });
+//   } catch (error) {
+//     console.error('Error creating blog post:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+
+// const updateBlogPost = async (req, res) => {
+//   try {
+//     const blogPostId = req.params.blogPostId;
+//     const blogPost = await BlogPost.findById(blogPostId);
+
+//     if (!blogPost) {
+//       return res.status(404).json({ error: 'Blog post not found' });
+//     }
+
+//     if (blogPost.author.toString() !== req.user._id.toString()) {
+//       return res.status(403).json({ error: 'Unauthorized access' });
+//     }
+
+//     blogPost.images = [];
+
+//     if (req.files && req.files.length > 0) {
+//       const bucket = storage.bucket();
+
+//       for (const file of req.files) {
+//         const blob = bucket.file(`blog/${Date.now()}_${file.originalname}`);
+//         const blobStream = blob.createWriteStream({
+//           metadata: {
+//             contentType: file.mimetype,
+//           },
+//         });
+
+//         await new Promise((resolve, reject) => {
+//           blobStream.on('error', error => reject(error));
+//           blobStream.on('finish', async () => {
+//             try {
+//               const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+//               blogPost.images.push(publicUrl);
+//               resolve(publicUrl);
+//             } catch (error) {
+//               reject(error);
+//             }
+//           });
+//           blobStream.end(file.buffer);
+//         });
+//       }
+//     }
+
+//     blogPost.title = req.body.title || blogPost.title;
+//     blogPost.content = req.body.content || blogPost.content;
+//     blogPost.tags = req.body.tags.split(',').map(tag => tag.trim());
+
+//     await blogPost.save();
+
+//     res.status(200).json({ message: 'Blog post updated successfully', blogPost });
+//   } catch (error) {
+//     console.error('Error updating blog post:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+
+
+
+
+// Helper function to extract subfields from form data
+const extractSubFields = (field) => {
+  const subFields = {};
+  for (const key in field) {
+    if (field.hasOwnProperty(key)) {
+      const parts = key.split('.');
+      if (parts.length > 1) {
+        const subField = parts[1];
+        subFields[subField] = field[key];
+      }
+    }
+  }
+  return subFields;
+};
+
+
+
+
+  const deleteBlogPost = async (req, res) => {
     try {
       const blogPostId = req.params.blogPostId;
   
@@ -124,6 +544,7 @@ const deleteBlogPost = async (req, res) => {
     }
   };
   
+  //get blogs in descending order. 
   // Controller to get all blog posts
   const getAllBlogPosts = async (req, res) => {
     try {

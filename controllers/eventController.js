@@ -12,6 +12,9 @@ const multerUpload = multer({ storage: multerStorage }).array('images', 2); // L
 // Controller to create an event
 // Controller to create an event
 
+
+
+
 const createEvent = async (req, res) => {
   try {
     console.log(req.body); // Initial log to inspect the raw body
