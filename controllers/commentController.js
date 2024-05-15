@@ -8,11 +8,19 @@ const sanitizeContent = (content) => {
   return filter.clean(content);
 };
 
-// Controller to create a comment
+
 const createComment = async (req, res) => {
   try {
     // Extract data from request body
-    const { content, author, blogPost } = req.body;
+    const { content, blogPost } = req.body;
+    
+    // Ensure req.user contains the expected values
+    if (!req.user || !req.user._id) {
+      return res.status(400).json({ error: 'Invalid user data' });
+    }
+
+    // Assign the author from req.user to the author variable
+    const author = req.user._id; // Use req.user._id instead of req.user.author
 
     // Sanitize comment content
     const sanitizedContent = sanitizeContent(content);
@@ -34,16 +42,35 @@ const createComment = async (req, res) => {
   }
 };
 
-// Controller to edit a comment
 const editComment = async (req, res) => {
   try {
     const commentId = req.params.commentId;
     const updateFields = req.body;
 
+    // Ensure req.user contains the expected values
+    if (!req.user || !req.user._id) {
+      return res.status(400).json({ error: 'Invalid user data' });
+    }
+
+    // Find the original comment by ID to verify the author
+    const originalComment = await Comment.findById(commentId);
+
+    if (!originalComment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Check if the authenticated user is the author of the original comment
+    if (originalComment.author.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
     // Sanitize comment content if it's provided
     if (updateFields.content) {
       updateFields.content = sanitizeContent(updateFields.content);
     }
+
+    // Ensure that the author field is not modified during the update
+    delete updateFields.author;
 
     // Find the comment by ID and update it
     const updatedComment = await Comment.findByIdAndUpdate(commentId, { $set: updateFields }, { new: true });
@@ -58,6 +85,31 @@ const editComment = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
+// const editComment = async (req, res) => {
+//   try {
+//     const commentId = req.params.commentId;
+//     const updateFields = req.body;
+
+//     // Sanitize comment content if it's provided
+//     if (updateFields.content) {
+//       updateFields.content = sanitizeContent(updateFields.content);
+//     }
+
+//     // Find the comment by ID and update it
+//     const updatedComment = await Comment.findByIdAndUpdate(commentId, { $set: updateFields }, { new: true });
+
+//     if (!updatedComment) {
+//       return res.status(404).json({ error: 'Comment not found' });
+//     }
+
+//     res.status(200).json({ message: 'Comment updated successfully', comment: updatedComment });
+//   } catch (error) {
+//     console.error('Error updating comment:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
 
 // Controller to delete a comment
 const deleteComment = async (req, res) => {
@@ -92,6 +144,7 @@ const getAllCommentsByPostId = async (req, res) => {
     }
   };
 
+  
 
   // functions for admin
 

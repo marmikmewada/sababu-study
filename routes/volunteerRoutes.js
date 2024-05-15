@@ -1,21 +1,3 @@
-// const express = require('express');
-// const router = express.Router();
-// const volunteerController = require('../controllers/volunteerController');
-
-
-// // Route to become a volunteer
-// router.post('/become', volunteerController.becomeVolunteer);
-
-// // Route to update volunteer status
-// router.put('/:volunteerId/status', volunteerController.updateVolunteerStatus);
-
-// // Route to get all volunteers (admin only)
-// router.get('/', volunteerController.getAllVolunteers);
-
-// // Route to get volunteer by ID (admin only)
-// router.get('/:volunteerId', volunteerController.getVolunteerById);
-
-
 
 // module.exports = router;
 
