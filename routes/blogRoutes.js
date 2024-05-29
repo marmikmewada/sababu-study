@@ -30,4 +30,7 @@ router.put('/:blogPostId/toggle-approval', authenticateUser, blogController.togg
 // Route to delete multiple blog posts
 router.delete('/admin/delete-multiple', authenticateUser, blogController.deleteMultipleBlogPosts);
 
+// Route to get the latest 4 blog posts
+router.get('/latest', blogController.getLatestBlogPosts);
+
 module.exports = router;

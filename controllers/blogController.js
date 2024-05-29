@@ -248,6 +248,20 @@ const extractSubFields = (field) => {
       res.status(500).json({ error: 'Internal server error' });
     }
   };
+
+
+  // Controller to get the latest 4 blog posts
+const getLatestBlogPosts = async (req, res) => {
+  try {
+    // Retrieve the latest 4 blog posts sorted by creation date in descending order
+    const latestBlogPosts = await BlogPost.find().sort({ createdAt: -1 }).limit(4);
+
+    res.status(200).json({ latestBlogPosts });
+  } catch (error) {
+    console.error('Error getting latest blog posts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
   
   module.exports = {
     createBlogPost,
@@ -256,6 +270,8 @@ const extractSubFields = (field) => {
     getAllBlogPosts,
     getBlogPostById,
     toggleBlogPostApproval,
-    deleteMultipleBlogPosts
+    deleteMultipleBlogPosts,
+
+    getLatestBlogPosts
   };
   

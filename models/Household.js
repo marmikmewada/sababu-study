@@ -16,7 +16,7 @@ const HouseholdSchema = new Schema({
       type: String
     },
     email: {
-      type: String
+      type: String 
     },
     birthdate: {
       type: Date

@@ -20,7 +20,14 @@ const port = process.env.PORT;
 
 // Set up CORS middleware
 app.use(express.json()); // Parse JSON bodies
-app.use(cors());
+// app.use(cors());
+const corsOptions = {
+  origin: 'http://localhost:5174', // Adjust this to your frontend domain
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
 
 app.use('/users', userRoutes);
 app.use('/Volunteer', volunteerRoutes);

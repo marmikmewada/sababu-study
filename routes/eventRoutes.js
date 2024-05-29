@@ -27,6 +27,7 @@ router.get('/my-events/:eventId', authenticateUser, eventController.getMyEventBy
 
 // Route to get all events in descending order
 router.get('/', eventController.getAllEvents);
+router.get('/new', eventController.getLatestEvents);
 
 // Route to get a single event by event ID
 router.get('/:eventId', eventController.getEventById);
@@ -39,5 +40,8 @@ router.delete('/:eventId/admin', authenticateUser, eventController.eventDeleteFo
 
 // Route to delete multiple events for admin
 router.delete('/admin/delete-multiple', authenticateUser, eventController.deleteMultipleEventsForAdmin);
+
+// Route to get the latest 4 events
+
 
 module.exports = router;

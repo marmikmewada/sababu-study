@@ -71,6 +71,10 @@ const EventSchema = new Schema({
   visitors: {
     type: Number
   }
+}
+,
+{
+  timestamps: true,
 });
 
 // Add a custom validator to limit the number of images to two

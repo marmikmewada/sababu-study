@@ -17,59 +17,25 @@ const xss = require("xss");
 const multerStorage = multer.memoryStorage();
 const multerUpload = multer({ storage: multerStorage }).single("image");
 
+
+
 const signup = async (req, res) => {
   try {
-    // Sanitize input data to prevent script injection
-    const sanitizedFirstName = xss(req.body.firstName);
-    const sanitizedMiddleName = xss(req.body.middleName);
-    const sanitizedLastName = xss(req.body.lastName);
-    const sanitizedPhone = xss(req.body.phone);
-    const sanitizedEmail = xss(req.body.email);
-    const sanitizedPassword = xss(req.body.password);
-    const sanitizedGender = xss(req.body.gender);
-    const sanitizedDob = xss(req.body.dob);
-    const sanitizedStreet = xss(req.body.address.street);
-    const sanitizedCity = xss(req.body.address.city);
-    const sanitizedState = xss(req.body.address.state);
-    const sanitizedZip = xss(req.body.address.zip);
+    const { firstName, lastName, phone, email, password } = req.body;
 
-    // Parse the date of birth in the USA format (month-date-year)
-    const [year, month, date] = sanitizedDob.split("-").map(Number);
-
-    // Calculate age based on date of birth
-    const userDob = new Date(year, month - 1, date); // Months are 0-indexed in JavaScript
-    const today = new Date();
-    let age = today.getFullYear() - userDob.getFullYear();
-
-    // Calculate the difference in months between birth date and today
-    const monthDiff = today.getMonth() - userDob.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < userDob.getDate())) {
-      age--;
-    }
-
-    // Check if user is 16 or older
-    if (age < 16) {
-      return res
-        .status(400)
-        .json({ error: "You must be at least 16 years old to sign up." });
+    // Validate required fields
+    if (!firstName || !lastName || !phone || !email || !password) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
     const newUser = new User({
-      firstName: sanitizedFirstName,
-      middleName: sanitizedMiddleName,
-      lastName: sanitizedLastName,
-      phone: sanitizedPhone,
-      email: sanitizedEmail,
-      password: sanitizedPassword,
-      gender: sanitizedGender,
-      dob: userDob,
-      address: {
-        street: sanitizedStreet,
-        city: sanitizedCity,
-        state: sanitizedState,
-        zip: sanitizedZip
-      }
+      firstName,
+      lastName,
+      phone,
+      email,
+      password // Storing password as plain text (not recommended)
     });
+
     await newUser.save();
     res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
@@ -81,33 +47,51 @@ const signup = async (req, res) => {
 
 const signin = async (req, res) => {
   try {
-    let user;
     const { emailOrPhone, password } = req.body;
 
-    // Sanitize input data to prevent script injection
-    const sanitizedEmailOrPhone = xss(emailOrPhone);
-
-    if (sanitizedEmailOrPhone.includes("@")) {
-      user = await User.findOne({ email: sanitizedEmailOrPhone });
+    // Find user by email or phone
+    let user;
+    if (emailOrPhone.includes("@")) {
+      user = await User.findOne({ email: emailOrPhone });
     } else {
-      user = await User.findOne({ phone: sanitizedEmailOrPhone });
+      user = await User.findOne({ phone: emailOrPhone });
     }
 
+    // Check if user exists and password matches
     if (!user || user.password !== password) {
-      return res
-        .status(401)
-        .json({ message: "Invalid email/phone or password" });
+      return res.status(401).json({ message: "Invalid email/phone or password" });
     }
 
+    // Generate JWT token
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: "29d",
     });
-    res.status(200).json({ token });
+
+    // Construct user object to send back
+    const userToSend = {
+      _id: user._id,
+      firstName: user.firstName,
+      middleName: user.middleName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      gender: user.gender,
+      dob: user.dob,
+      address: user.address,
+      role: user.role,
+      imageUrl: user.imageUrl
+      
+    };
+
+    res.status(200).json({ token, user: userToSend });
   } catch (error) {
     console.error("Error in signin:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+
+
 
 const updateUserProfile = async (req, res) => {
   try {
@@ -267,18 +251,19 @@ const getUserProfile = async (req, res) => {
     // Determine the behavior based on the membership status
     switch (membership.status) {
       case "applied":
-        // If membership status is "applied", return a message indicating that the profile access is applied
-        return res.status(200).json({ message: "applied" });
+        // If membership status is "applied", return the user profile only
+        const user = await User.findById(userId);
+        return res.status(200).json({ profile: user });
       case "active":
       case "about to expire":
       case "expired":
         // If membership status is "active", "about to expire", or "expired", return user, member, and household profiles
-        const user = await User.findById(userId);
+        const userActive = await User.findById(userId);
         const member = await Member.findOne({ user: userId });
         const household = await Household.findOne({ member: member._id });
         return res
           .status(200)
-          .json({ user: user, member: member, household: household });
+          .json({ user: userActive, member: member, household: household });
       case "denied":
         // If membership status is "denied", return a message indicating that the profile access is denied
         return res.status(403).json({ error: "Access to profile is denied" });
@@ -290,6 +275,7 @@ const getUserProfile = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 const getAllUserForAdmin = async (req, res) => {
   try {
@@ -465,6 +451,71 @@ const deleteUserForAdmin = async (req, res) => {
   }
 };
 
+
+const getUserNamesByIds = async (req, res) => {
+  try {
+    // Extract user IDs from the request body
+    const { userIds } = req.body;
+
+    // Validate if userIds is an array and not empty
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'User IDs must be provided in an array' });
+    }
+
+    // Find users by their IDs and retrieve only firstName and lastName
+    const users = await User.find({ _id: { $in: userIds } }, 'firstName lastName');
+
+    // Create a mapping of user IDs to names
+    const userNames = {};
+    users.forEach(user => {
+      userNames[user._id] = `${user.firstName} ${user.lastName}`;
+    });
+
+    // Respond with the user names mapping
+    res.status(200).json({ userNames });
+  } catch (error) {
+    console.error('Error fetching user names by IDs:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+const checkUserAuthentication = (req, res) => {
+  try {
+    if (req.user) {
+      // Assuming req.user.role contains the user's role information
+      return res.status(200).json({ message: "ok", role: req.user.role });
+    } else {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+  } catch (error) {
+    console.error("Error checking user authentication:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+const checkMembershipStatus = async (req, res) => {
+  try {
+    // Get the user ID from req.user
+    const userId = req.user._id;
+
+    // Find the user's membership status
+    const membership = await Membership.findOne({ user: userId });
+
+    if (!membership) {
+      // If membership doesn't exist, return an appropriate response
+      return res.status(404).json({ message: "Membership not found" });
+    }
+
+    // Return the membership status
+    res.status(200).json({ status: membership.status });
+  } catch (error) {
+    console.error("Error checking membership status:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+
+
 // users can post blog, users can signup for events, they can like, comment (limited), update their own record
 
 module.exports = {
@@ -483,4 +534,7 @@ module.exports = {
   updateMemberProfileForAdmin,
   updateHouseholdProfileForAdmin,
   deleteUserForAdmin,
+  getUserNamesByIds,
+  checkUserAuthentication,
+  checkMembershipStatus,
 };

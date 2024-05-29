@@ -222,7 +222,7 @@ const getMyEventByEventId = async (req, res) => {
 const getAllEvents = async (req, res) => {
   try {
     // Fetch all events in descending order of creation date
-    const events = await Event.find().sort({ createdAt: -1 });
+    const events = await Event.find({ isApproved: true }).sort({ createdAt: -1 });
     res.status(200).json({ events });
   } catch (error) {
     console.error('Error fetching events:', error);
@@ -332,6 +332,24 @@ const deleteMultipleEventsForAdmin = async (req, res) => {
 };
 
 
+const getLatestEvents = async (req, res) => {
+  try {
+    // Retrieve the 4 most recent approved events sorted by createdAt in descending order
+    const latestEvents = await Event.find({ isApproved: true })
+      .sort({ createdAt: -1 })
+      .limit(4);
+
+    res.status(200).json({ latestEvents }); // Send latestEvents as JSON response
+
+  } catch (error) {
+    console.error('Error getting latest events:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
+
 
 
 
@@ -345,5 +363,6 @@ module.exports = {
   getEventById,
   eventApproveForAdmin,
   eventDeleteForAdmin,
-  deleteMultipleEventsForAdmin
+  deleteMultipleEventsForAdmin,
+  getLatestEvents
 };
